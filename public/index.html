@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weather down the road</title>
+<meta name="description" content="See the forecast at every point along your drive, at the time you'll actually be there.">
+<meta name="theme-color" content="#1D4F91">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmwVTV5DLYDZ2FrnKlpdKCz53GmzUW2Btda8ThcEkPeXlQRGGyDqNlxxTIRfrpBMFf9oYTdCd9A==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%231D4F91'/%3E%3Cpath d='M9 22 L16 9 L23 22' stroke='%23fff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="rail">
+    <header class="brand">
+      <h1>Weather down the road</h1>
+      <p>The forecast for each stretch of your drive, at the time you'll be there.</p>
+    </header>
+
+    <form id="plan-form" class="form" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="from">Leaving from</label>
+        <div class="combo" data-combo="from">
+          <input id="from" type="text" placeholder="City, address, or place" required spellcheck="false" aria-autocomplete="list" aria-expanded="false" aria-controls="from-list">
+          <button type="button" class="geo" data-geo="from" title="Use my location" aria-label="Use my location">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          </button>
+          <ul id="from-list" class="suggest" role="listbox" hidden></ul>
+        </div>
+      </div>
+
+      <button type="button" class="swap" id="swap" title="Swap start and destination" aria-label="Swap start and destination">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L4 7M7 4l3 3M17 8v12M17 20l3-3M17 20l-3-3"/></svg>
+      </button>
+
+      <div class="field">
+        <label for="to">Going to</label>
+        <div class="combo" data-combo="to">
+          <input id="to" type="text" placeholder="City, address, or place" required spellcheck="false" aria-autocomplete="list" aria-expanded="false" aria-controls="to-list">
+          <ul id="to-list" class="suggest" role="listbox" hidden></ul>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="depart">Leaving at</label>
+        <div class="when">
+          <input id="depart" type="datetime-local" required>
+          <button type="button" id="now" class="now">Now</button>
+        </div>
+        <small class="hint" id="depart-hint"></small>
+      </div>
+
+      <button type="submit" class="go" id="go">
+        <span class="go-label">Check the road ahead</span>
+        <span class="go-busy" hidden><span class="spinner"></span> Working…</span>
+      </button>
+
+      <div class="error" id="error" role="alert" hidden></div>
+    </form>
+
+    <section class="summary" id="summary" hidden></section>
+
+    <section class="timeline" id="timeline" aria-live="polite"></section>
+
+    <footer class="credits">
+      Routing by <a href="https://project-osrm.org" rel="noopener">OSRM</a> ·
+      Forecast by <a href="https://open-meteo.com" rel="noopener">Open-Meteo</a> ·
+      Places by <a href="https://photon.komoot.io" rel="noopener">Photon</a> ·
+      Map © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions" rel="noopener">CARTO</a>
+    </footer>
+  </aside>
+
+  <main class="stage">
+    <div id="map" class="map" role="region" aria-label="Route map"></div>
+
+    <div class="strip" id="strip" hidden>
+      <div class="strip-head">
+        <span id="strip-title"></span>
+        <button type="button" id="share" class="share" title="Copy a link to this plan">Copy link</button>
+      </div>
+      <div class="strip-bar" id="strip-bar" role="list"></div>
+      <div class="strip-ticks" id="strip-ticks"></div>
+    </div>
+
+    <div class="legend" id="legend" hidden>
+      <span><i class="sw s0"></i>Good</span>
+      <span><i class="sw s1"></i>Marginal</span>
+      <span><i class="sw s2"></i>Poor</span>
+      <span><i class="sw s3"></i>Dangerous</span>
+    </div>
+
+    <div class="empty" id="empty">
+      <div>
+        <h2>Pick two places and a time.</h2>
+        <p>The route will color itself by what the weather's doing at each point when you get there.</p>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="/app.js" type="module"></script>
+</body>
+</html>
